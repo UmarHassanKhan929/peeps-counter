@@ -2,22 +2,33 @@ import streamlit as st
 import pandas as pd
 import json
 
-# Function to calculate "On-site" counts
-def calculate_onsite_counts(data):
+# Function to calculate "On-site", "WFH", and "N/A" counts
+def calculate_counts(data):
     days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
-    onsite_counts = {day: 0 for day in days}
+    counts = {day: {"On-site": 0, "WFH": 0, "N/A": 0} for day in days}
 
     for entry in data:
         for day in days:
-            if entry.get(day) == "On-site":
-                onsite_counts[day] += 1
+            value = entry.get(day, "N/A")
+            if value in counts[day]:
+                counts[day][value] += 1
 
-    sorted_counts = dict(sorted(onsite_counts.items(), key=lambda item: item[1], reverse=True))
-    return sorted_counts
+    # Flatten the counts dict into a list of rows for the DataFrame
+    flattened_counts = [
+        {
+            "Day": day,
+            "On-site Count": counts[day]["On-site"],
+            "WFH Count": counts[day]["WFH"],
+            "N/A Count": counts[day]["N/A"],
+        }
+        for day in days
+    ]
+
+    return flattened_counts
 
 # Streamlit UI
-st.title("Attendance Tracker - On-Site Days")
-st.write("Upload a JSON file to get a breakdown of On-site attendance per day.")
+st.title("Attendance Tracker - Day-wise Breakdown")
+st.write("Upload a JSON file to get a breakdown of 'On-site', 'WFH', and 'N/A' attendance per day.")
 
 # File upload
 uploaded_file = st.file_uploader("Upload your JSON file", type=["json"])
@@ -33,13 +44,13 @@ if uploaded_file:
         st.write("### Preview of Uploaded Data")
         st.dataframe(df)
 
-        # Calculate counts
-        st.write("### On-site Counts Per Day")
-        onsite_counts = calculate_onsite_counts(data)
+        # Calculate counts for On-site, WFH, and N/A
+        st.write("### Day-wise Breakdown of Attendance")
+        counts = calculate_counts(data)
 
         # Display the results
-        onsite_df = pd.DataFrame(list(onsite_counts.items()), columns=["Day", "On-site Count"])
-        st.table(onsite_df)
+        counts_df = pd.DataFrame(counts)
+        st.table(counts_df)
 
     except Exception as e:
         st.error(f"Error processing file: {e}")
